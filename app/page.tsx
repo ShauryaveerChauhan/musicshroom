@@ -1,5 +1,6 @@
 
-import { SignIn } from "@/components/signin";
+
+import { Appbar } from "@/components/appbar";
 import Image from "next/image";
 
 export default function Home() {
@@ -7,8 +8,7 @@ export default function Home() {
   return (
 
     <div>
-    <SignIn></SignIn>
-    
+    <Appbar></Appbar>
     </div>
     
   );
