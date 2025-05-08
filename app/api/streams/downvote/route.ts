@@ -31,7 +31,7 @@ export  async function POST(req: NextRequest){
             await prismaClient.upvote.delete({
                 where : {
                     userId_streamId : {
-                    userId : user?.id ,
+                    userId : user?.id! ,
                     streamId : data.streamId
                 }
             }

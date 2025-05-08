@@ -16,7 +16,12 @@ export  async function POST(req: NextRequest){
         where: {
             email : session?.user?.email as string
         }
+        
     })
+    if (!user) {
+        return NextResponse.json({ message: "User not found" }, { status: 404 });
+      }
+      
 
     if(!session?.user?.email){
         return NextResponse.json({
