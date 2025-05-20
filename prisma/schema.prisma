@@ -14,18 +14,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id       String  @id @default(uuid())
-  email    String  @unique
-  userId   String 
-  streamId String
-  provider String
-  session  Session[]
-  streams  Stream[]
-  upvotes  Upvote[]
-  @@unique([userId, streamId])
-}
 
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role           @default(EndUser)
+  streams       Stream[]
+  upvotes       Upvote[]
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
 model Stream {
   id             String  @id @default(uuid())
   type           StreamType
@@ -51,10 +54,10 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
-
 model VerificationToken {
   identifier String
   token      String
@@ -63,6 +66,27 @@ model VerificationToken {
   @@id([identifier, token])
 }
  
+
+ model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+ 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@id([provider, providerAccountId])
+} 
 
 enum StreamType {
   Spotify
