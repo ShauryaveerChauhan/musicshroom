@@ -13,7 +13,7 @@ const CreateStreamSchema = z.object({
 export async function POST(req: NextRequest){
     try{
             const data = CreateStreamSchema.parse(await req.json());
-            const isYoutube = YouTube_RegEx.test(data.url)
+            const isYoutube = data.url.match(YouTube_RegEx)
 
             if (!isYoutube){ 
                 return NextResponse.json({
