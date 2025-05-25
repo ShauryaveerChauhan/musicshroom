@@ -40,8 +40,8 @@ model Stream {
   userId      String
   user        User       @relation(fields: [userId], references: [id])
   smallImg    String
-  bigImg      String     
-  artist      String?    
+  bigImg      String
+  artist      String?
   album       String?
   durationMs  Int?
 }
@@ -93,6 +93,12 @@ model VerificationToken {
   expires    DateTime
 
   @@id([identifier, token])
+}
+
+model Room {
+  id   String @default(uuid())
+  Name String
+  Code String @unique
 }
 
 enum StreamType {

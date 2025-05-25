@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Music, Users, ThumbsUp, ThumbsDown, Play, Radio } from "lucide-react"
 import Link from "next/link"
 import { Appbar } from "@/components/appbar"
+import { CreateRoom } from "@/components/createroom"
+import { JoinRoom } from "@/components/joinroom"
 
 export default function LandingPage() {
   return (
@@ -30,17 +32,15 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="bg-green-500 hover:bg-green-600 text-black font-medium px-8 py-6">
-                  <Play className="mr-2 h-5 w-5" />
-                  Start Session
+                <Button size="lg" className="bg-green-500 hover:bg-green-600 text-black font-medium px-6 py-4">
+                  <CreateRoom/>
                 </Button>
                 <Button
                   variant="outline"
                   size="lg"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white px-8 py-6"
+                  className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white px-6 py-4"
                 >
-                  <Users className="mr-2 h-5 w-5" />
-                  Join Session
+                  <JoinRoom/>
                 </Button>
               </div>
 
