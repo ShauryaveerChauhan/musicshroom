@@ -39,6 +39,11 @@ model Stream {
   upvotes     Upvote[]
   userId      String
   user        User       @relation(fields: [userId], references: [id])
+  smallImg    String
+  bigImg      String     
+  artist      String?    
+  album       String?
+  durationMs  Int?
 }
 
 model Upvote {
@@ -92,7 +97,7 @@ model VerificationToken {
 
 enum StreamType {
   Spotify
-  Youtube
+  YouTube
 }
 
 enum Provider {

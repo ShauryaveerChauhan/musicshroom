@@ -6,13 +6,10 @@ import { Music, Users, ThumbsUp, ThumbsDown, Play, Radio } from "lucide-react"
 import Link from "next/link"
 import { Appbar } from "@/components/appbar"
 
-
-export default function Home() {
-  console.log(process.env.GOOGLE_CLIENT_ID)
+export default function LandingPage() {
   return (
-
-    <div>
-      <Appbar/>
+    <div className="flex flex-col min-h-screen bg-black text-white">
+     <Appbar/>
       <main className="flex-1">
         {/* Hero Section */}
         <section className="w-full py-20 md:py-32">
@@ -312,5 +309,3 @@ export default function Home() {
     </div>
   )
 }
-
-    
