@@ -7,7 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Play, Copy, RefreshCw } from "lucide-react"
 
-export function CreateRoom({openCreateRoomDialog}) {
+
+interface inputProps{
+  openCreateRoomDialog: boolean;
+  setOpenCreateRoomDialog: (openCreateRoomDialog:boolean) => void;
+}
+
+export function CreateRoom({openCreateRoomDialog,setOpenCreateRoomDialog}:inputProps) {
   const [roomName, setRoomName] = React.useState("")
   const [roomCode, setRoomCode] = React.useState("")
   const [copied, setCopied] = React.useState(false)
@@ -44,9 +50,11 @@ export function CreateRoom({openCreateRoomDialog}) {
   }
 
   return (
-    <Dialog open={openCreateRoomDialog}>
+    <Dialog open={openCreateRoomDialog} onOpenChange={setOpenCreateRoomDialog}>
       <DialogTrigger asChild>
-        <Button size="lg" className="bg-green-500 hover:bg-green-600 text-black font-medium px-8 py-6">
+        <Button onClick={()=>{
+          setOpenCreateRoomDialog(true)
+        }} size="lg" className="bg-green-500 hover:bg-green-600 text-black font-medium px-8 py-6">
           <Play className="mr-2 h-5 w-5" />
           Start Session
         </Button>
