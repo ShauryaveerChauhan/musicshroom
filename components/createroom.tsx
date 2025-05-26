@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Play, Copy, RefreshCw } from "lucide-react"
 
-export function CreateRoom() {
+export function CreateRoom({openCreateRoomDialog}) {
   const [roomName, setRoomName] = React.useState("")
   const [roomCode, setRoomCode] = React.useState("")
   const [copied, setCopied] = React.useState(false)
@@ -44,7 +44,7 @@ export function CreateRoom() {
   }
 
   return (
-    <Dialog>
+    <Dialog open={openCreateRoomDialog}>
       <DialogTrigger asChild>
         <Button size="lg" className="bg-green-500 hover:bg-green-600 text-black font-medium px-8 py-6">
           <Play className="mr-2 h-5 w-5" />

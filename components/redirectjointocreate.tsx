@@ -10,10 +10,15 @@ export function CreateSession(){
           setCreateRoomOpen(true)
     }
 
-    return <>
-    {/* @ts-ignore */}
-      <CreateRoom open = {CreateRoomOpen} onOpenChange = {setCreateRoomOpen}/>
-      {/* @ts-ignore */}
-      <JoinRoom onSwitchToCreate = {switchToCreate}/>
-      </>
+  return (
+  <>
+    {CreateRoomOpen ? (
+      // @ts-ignore
+      <CreateRoom open={CreateRoomOpen} onOpenChange={setCreateRoomOpen} />
+    ) : (
+      <JoinRoom onSwitchToCreate={switchToCreate} />
+    )}
+  </>
+);
+
 }

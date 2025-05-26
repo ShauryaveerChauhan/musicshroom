@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Music, Users, ThumbsUp, ThumbsDown, Play, Radio } from "lucide-react"
 import Link from "next/link"
 import { Appbar } from "@/components/appbar"
+import DesignDialog from "@/components/design-dialog"
 import { CreateRoom } from "@/components/createroom"
 import { JoinRoom } from "@/components/joinroom"
 
@@ -32,16 +33,7 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="bg-green-500 hover:bg-green-600 text-black font-medium px-6 py-4">
-                  <CreateRoom/>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white px-6 py-4"
-                >
-                  <JoinRoom/>
-                </Button>
+                    <DesignDialog></DesignDialog>
               </div>
 
               {/* Hero Visual */}
@@ -205,8 +197,8 @@ export default function LandingPage() {
         <section className="w-full py-20 bg-gray-950">
           <div className="container px-4 md:px-6 mx-auto">
             <div className="text-center max-w-2xl mx-auto">
-              <h2 className="text-3xl font-bold sm:text-4xl mb-4">Ready to Listen Together?</h2>
-              <p className="text-gray-400 text-lg mb-8">Join the future of social music streaming.</p>
+              <h2 className="text-3xl font-bold sm:text-4xl mb-4">Join the MusicShroom Family</h2>
+              <p className="text-gray-400 text-lg mb-8">Subscribe to our monthly newsletter for more insights on your listening</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-md mx-auto">
                 <Input
                   type="email"

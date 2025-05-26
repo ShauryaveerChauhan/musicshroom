@@ -8,11 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Users, LogIn, AlertCircle } from "lucide-react"
 
-interface JoinRoomModalProps {
-  onSwitchToCreate?: () => void
-}
 
-export function JoinRoom({ onSwitchToCreate }: JoinRoomModalProps) {
+export function JoinRoom({ setOpenCreateRoomDialog }) {
   const [roomCode, setRoomCode] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState("")
@@ -69,18 +66,6 @@ export function JoinRoom({ onSwitchToCreate }: JoinRoomModalProps) {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && roomCode.length === 6 && !isLoading) {
       handleJoinRoom()
-    }
-  }
-
-  const handleSwitchToCreate = () => {
-    setOpen(false) // Close join modal
-    // Reset form state
-    setRoomCode("")
-    setError("")
-    setIsLoading(false)
-    // Call the callback to open create modal
-    if (onSwitchToCreate) {
-      onSwitchToCreate()
     }
   }
 
@@ -158,7 +143,7 @@ export function JoinRoom({ onSwitchToCreate }: JoinRoomModalProps) {
             <p className="text-gray-500 text-sm">
               Don't have a room code?{" "}
               <button
-                onClick={handleSwitchToCreate}
+                onClick={()=>setOpenCreateRoomDialog(true)}
                 className="text-green-400 hover:text-green-300 underline focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
               >
                 Create a new session
