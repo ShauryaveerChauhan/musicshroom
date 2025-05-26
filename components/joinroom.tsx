@@ -9,11 +9,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Users, LogIn, AlertCircle } from "lucide-react"
 
 
-export function JoinRoom({ setOpenCreateRoomDialog }) {
+
+interface inputProps{
+  setOpenCreateRoomDialog:(openCreateRoomDialog:boolean)=>void
+}
+
+export function JoinRoom({ setOpenCreateRoomDialog }:inputProps) {
   const [roomCode, setRoomCode] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState("")
-  const [open, setOpen] = React.useState(false)
+  const [open,setOpen]=React.useState(false);
 
   // Format room code as user types (uppercase, max 6 chars)
   const handleRoomCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,6 +30,11 @@ export function JoinRoom({ setOpenCreateRoomDialog }) {
     if (error) setError("") // Clear error when user starts typing
   }
 
+  const handleChangeDialog = ()=>{
+
+    setOpenCreateRoomDialog(true)
+    setOpen(false)
+  }
   const handleJoinRoom = async () => {
     if (!roomCode.trim()) {
       setError("Please enter a room code")
@@ -143,7 +153,7 @@ export function JoinRoom({ setOpenCreateRoomDialog }) {
             <p className="text-gray-500 text-sm">
               Don't have a room code?{" "}
               <button
-                onClick={()=>setOpenCreateRoomDialog(true)}
+                onClick={handleChangeDialog}
                 className="text-green-400 hover:text-green-300 underline focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-gray-900 rounded"
               >
                 Create a new session
