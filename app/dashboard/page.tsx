@@ -1,3 +1,6 @@
+"use client"
+
+import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -21,8 +24,21 @@ import {
 import Link from "next/link"
 import Image from "next/image"
 
+interface Song {
+  id: number
+  title: string
+  artist: string
+  album: string
+  duration: string
+  thumbnail: string
+  upvotes: number
+  downvotes: number
+  addedBy: string
+  userVote?: "up" | "down" | null
+}
+
 export default function Dashboard() {
-  const currentSong = {
+  const [currentSong] = React.useState({
     title: "Blinding Lights",
     artist: "The Weeknd",
     album: "After Hours",
@@ -31,9 +47,9 @@ export default function Dashboard() {
     thumbnail: "/placeholder.svg?height=300&width=300",
     upvotes: 12,
     downvotes: 2,
-  }
+  })
 
-  const queueSongs = [
+  const [queueSongs, setQueueSongs] = React.useState<Song[]>([
     {
       id: 1,
       title: "Good 4 U",
@@ -44,6 +60,7 @@ export default function Dashboard() {
       upvotes: 8,
       downvotes: 1,
       addedBy: "Sarah",
+      userVote: null,
     },
     {
       id: 2,
@@ -55,6 +72,7 @@ export default function Dashboard() {
       upvotes: 6,
       downvotes: 0,
       addedBy: "Mike",
+      userVote: null,
     },
     {
       id: 3,
@@ -66,6 +84,7 @@ export default function Dashboard() {
       upvotes: 4,
       downvotes: 2,
       addedBy: "Alex",
+      userVote: null,
     },
     {
       id: 4,
@@ -77,6 +96,7 @@ export default function Dashboard() {
       upvotes: 7,
       downvotes: 0,
       addedBy: "Emma",
+      userVote: null,
     },
     {
       id: 5,
@@ -88,8 +108,9 @@ export default function Dashboard() {
       upvotes: 9,
       downvotes: 1,
       addedBy: "Jordan",
+      userVote: null,
     },
-  ]
+  ])
 
   const sessionUsers = [
     { name: "You", avatar: "/placeholder.svg?height=32&width=32", isHost: true },
@@ -98,6 +119,64 @@ export default function Dashboard() {
     { name: "Alex", avatar: "/placeholder.svg?height=32&width=32", isHost: false },
     { name: "Emma", avatar: "/placeholder.svg?height=32&width=32", isHost: false },
   ]
+
+  // Calculate net score for sorting (upvotes - downvotes)
+  const getNetScore = (song: Song) => song.upvotes - song.downvotes
+
+  // Sort songs by net score (highest first)
+  const sortedQueueSongs = React.useMemo(() => {
+    return [...queueSongs].sort((a, b) => {
+      const scoreA = getNetScore(a)
+      const scoreB = getNetScore(b)
+
+      // If scores are equal, maintain original order (stable sort)
+      if (scoreA === scoreB) {
+        return a.id - b.id
+      }
+
+      return scoreB - scoreA // Highest score first
+    })
+  }, [queueSongs])
+
+  // Handle voting logic
+  const handleVote = (songId: number, voteType: "up" | "down") => {
+    setQueueSongs((prevSongs) =>
+      prevSongs.map((song) => {
+        if (song.id !== songId) return song
+
+        const currentVote = song.userVote
+        let newUpvotes = song.upvotes
+        let newDownvotes = song.downvotes
+        let newUserVote: "up" | "down" | null = voteType
+
+        // Remove previous vote if exists
+        if (currentVote === "up") {
+          newUpvotes -= 1
+        } else if (currentVote === "down") {
+          newDownvotes -= 1
+        }
+
+        // If clicking the same vote type, remove the vote (toggle off)
+        if (currentVote === voteType) {
+          newUserVote = null
+        } else {
+          // Add new vote
+          if (voteType === "up") {
+            newUpvotes += 1
+          } else {
+            newDownvotes += 1
+          }
+        }
+
+        return {
+          ...song,
+          upvotes: newUpvotes,
+          downvotes: newDownvotes,
+          userVote: newUserVote,
+        }
+      }),
+    )
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-black text-white">
@@ -240,7 +319,7 @@ export default function Dashboard() {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder=" Add your desired song's link here..."
+                      placeholder="Search for songs, artists, or albums..."
                       className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 pl-10"
                     />
                   </div>
@@ -259,52 +338,95 @@ export default function Dashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-white">Queue</h3>
-                  <Badge variant="secondary" className="bg-gray-800 text-gray-300">
-                    {queueSongs.length} songs
-                  </Badge>
+                  <div className="flex items-center gap-4">
+                    <Badge variant="secondary" className="bg-gray-800 text-gray-300">
+                      {queueSongs.length} songs
+                    </Badge>
+                    <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
+                      Sorted by votes
+                    </Badge>
+                  </div>
                 </div>
 
                 <div className="space-y-3">
-                  {queueSongs.map((song, index) => (
-                    <div
-                      key={song.id}
-                      className="flex items-center gap-4 p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors"
-                    >
-                      <div className="text-gray-400 text-sm w-6 text-center">{index + 1}</div>
+                  {sortedQueueSongs.map((song, index) => {
+                    const netScore = getNetScore(song)
+                    return (
+                      <div
+                        key={song.id}
+                        className="flex items-center gap-4 p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors"
+                      >
+                        <div className="text-gray-400 text-sm w-6 text-center">{index + 1}</div>
 
-                      <Image
-                        src={song.thumbnail || "/placeholder.svg"}
-                        alt={`${song.title} album cover`}
-                        width={48}
-                        height={48}
-                        className="rounded-lg"
-                      />
+                        <Image
+                          src={song.thumbnail || "/placeholder.svg"}
+                          alt={`${song.title} album cover`}
+                          width={48}
+                          height={48}
+                          className="rounded-lg"
+                        />
 
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium truncate">{song.title}</p>
-                        <p className="text-gray-400 text-sm truncate">{song.artist}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium truncate">{song.title}</p>
+                          <p className="text-gray-400 text-sm truncate">{song.artist}</p>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                          <Clock className="h-3 w-3" />
+                          <span>{song.duration}</span>
+                        </div>
+
+                        {/* Net Score Display */}
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`text-sm font-medium px-2 py-1 rounded ${
+                              netScore > 0
+                                ? "bg-green-500/20 text-green-400"
+                                : netScore < 0
+                                  ? "bg-red-500/20 text-red-400"
+                                  : "bg-gray-700 text-gray-400"
+                            }`}
+                          >
+                            {netScore > 0 ? "+" : ""}
+                            {netScore}
+                          </div>
+                        </div>
+
+                        {/* Voting Buttons */}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleVote(song.id, "up")}
+                            className={`h-8 w-8 p-0 ${
+                              song.userVote === "up"
+                                ? "text-green-400 bg-green-400/20"
+                                : "text-green-400 hover:bg-green-400/20"
+                            }`}
+                          >
+                            <ThumbsUp className="h-3 w-3" />
+                          </Button>
+                          <span className="text-green-400 text-sm w-4 text-center">{song.upvotes}</span>
+
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleVote(song.id, "down")}
+                            className={`h-8 w-8 p-0 ${
+                              song.userVote === "down"
+                                ? "text-red-400 bg-red-400/20"
+                                : "text-red-400 hover:bg-red-400/20"
+                            }`}
+                          >
+                            <ThumbsDown className="h-3 w-3" />
+                          </Button>
+                          <span className="text-red-400 text-sm w-4 text-center">{song.downvotes}</span>
+                        </div>
+
+                        <div className="text-gray-500 text-xs">by {song.addedBy}</div>
                       </div>
-
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <Clock className="h-3 w-3" />
-                        <span>{song.duration}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="ghost" className="text-green-400 hover:bg-green-400/20 h-8 w-8 p-0">
-                          <ThumbsUp className="h-3 w-3" />
-                        </Button>
-                        <span className="text-green-400 text-sm w-4 text-center">{song.upvotes}</span>
-
-                        <Button size="sm" variant="ghost" className="text-red-400 hover:bg-red-400/20 h-8 w-8 p-0">
-                          <ThumbsDown className="h-3 w-3" />
-                        </Button>
-                        <span className="text-red-400 text-sm w-4 text-center">{song.downvotes}</span>
-                      </div>
-
-                      <div className="text-gray-500 text-xs">by {song.addedBy}</div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </CardContent>
             </Card>
