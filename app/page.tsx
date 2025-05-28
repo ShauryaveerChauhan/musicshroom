@@ -23,7 +23,7 @@ export default function LandingPage() {
               </Badge>
               <div className="space-y-6 max-w-4xl">
                 <h1 className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl">
-                  Listen Together,
+                  FUCK Together,
                   <br />
                   <span className="text-green-400">Vote Together</span>
                 </h1>
