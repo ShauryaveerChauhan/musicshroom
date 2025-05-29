@@ -23,9 +23,10 @@ export default function LandingPage() {
               </Badge>
               <div className="space-y-6 max-w-4xl">
                 <h1 className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl">
-                  FUCK Together,
+                  Listen Together,
                   <br />
-                  <span className="text-green-400">Vote Together</span>
+                  <span className="text-green-400">Vote Together
+                  </span>
                 </h1>
                 <p className="mx-auto max-w-[600px] text-gray-400 text-lg md:text-xl">
                   Create collaborative music sessions where everyone controls the playlist. Upvote favorites, skip the
