@@ -19,4 +19,24 @@ export const {handlers,auth,signIn,signOut} = NextAuth({
       },
     }),
   ],
+  secret: process.env.NEXTAUTH_SECRET ?? "secret",
+  callbacks: {
+    async signIn(params) {
+      if (!params.user.email) {
+        return false;
+      }
+
+      try {
+        await prismaClient.user.create({
+          data: {
+            email: params.user.email,
+            provider: "Google"
+          }
+        })
+      } catch(e) {
+
+      }
+      return true
+    }
+  }
 });

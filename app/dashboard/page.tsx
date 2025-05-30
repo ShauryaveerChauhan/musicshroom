@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import axios from "axios"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -27,6 +28,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { prismaClient } from "../lib/db"
 
 interface Song {
   id: number
@@ -178,6 +180,7 @@ export default function Dashboard() {
   // Calculate net score for sorting (upvotes - downvotes)
   const getNetScore = (song: Song) => song.upvotes - song.downvotes
 
+   
   // Sort songs by net score (highest first)
   const sortedQueueSongs = React.useMemo(() => {
     return [...queueSongs].sort((a, b) => {
@@ -201,7 +204,18 @@ export default function Dashboard() {
 
   // Progress bar percentage
   const progressPercentage = currentSong ? (currentTime / currentSong.durationSeconds) * 100 : 0
-
+  function refreshStreams(){
+    axios.get(`/streams/personalised`)
+  }
+  
+  React.useEffect(() => {
+    refreshStreams();
+    const interval = setInterval(() => {
+    
+    }, 
+    // @ts-ignore
+    REFRESH_INTERVAL_MS)
+  }, []) 
   // Auto-advance to next song when current song ends
   React.useEffect(() => {
     if (currentSong && currentTime >= currentSong.durationSeconds) {
@@ -329,7 +343,7 @@ export default function Dashboard() {
         <div className="ml-8 flex items-center gap-4">
           <div>
             <h2 className="font-semibold text-white">Friday Night Vibes</h2>
-            <p className="text-sm text-gray-400">Room: FNV2024</p>
+            <p className="text-sm text-gray-400">Room: </p>
           </div>
         </div>
 

@@ -21,6 +21,7 @@ model User {
   emailVerified DateTime?
   image         String?
   role          Role      @default(EndUser)
+  provider      String?
   streams       Stream[]
   upvotes       Upvote[]
   accounts      Account[]

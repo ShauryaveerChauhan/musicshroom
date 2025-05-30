@@ -21,10 +21,17 @@ export async function GET(req: NextRequest) {
     const streams = await prismaClient.stream.findMany({
         where: {
             userId: user.id
+        },
+        include: {
+            _count: {
+                select: {
+                    upvotes: true
+                }
+            }
         }
     })
     
-    return NextResponse.json({ streams });
+    return NextResponse.json({ streams});
 }
 
 
