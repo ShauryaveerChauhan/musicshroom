@@ -415,21 +415,7 @@ export default function Dashboard() {
                           >
                             <SkipForward className="h-5 w-5" />
                           </Button>
-                          <div className="flex items-center gap-2 ml-4">
-                            <Volume2 className="h-4 w-4 text-gray-400" />
-                            <div className="w-20 bg-gray-700 rounded-full h-1 cursor-pointer">
-                              <div
-                                className="bg-white h-1 rounded-full"
-                                style={{ width: `${volume}%` }}
-                                onClick={(e) => {
-                                  const rect = e.currentTarget.parentElement!.getBoundingClientRect()
-                                  const clickX = e.clientX - rect.left
-                                  const newVolume = Math.floor((clickX / rect.width) * 100)
-                                  setVolume(Math.max(0, Math.min(newVolume, 100)))
-                                }}
-                              />
-                            </div>
-                          </div>
+
                         </div>
 
                         {/* Voting for Video */}
@@ -449,6 +435,7 @@ export default function Dashboard() {
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm text-gray-400">
                           <span>{formatTime(currentTime)}</span>
+                          <span>Select the section of the song you want to play</span>
                           <span>{currentSong.duration}</span>
                         </div>
                         <div
@@ -506,7 +493,7 @@ export default function Dashboard() {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Search for songs, artists, or paste YouTube URL..."
+                      placeholder="Play Your desired song through the youtube url :)"
                       className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 pl-10"
                     />
                   </div>
