@@ -27,11 +27,22 @@ export async function GET(req: NextRequest) {
                 select: {
                     upvotes: true
                 }
+            
+            },
+            upvotes: {
+                where: {
+                    userId: user.id
+                },
+             }
             }
-        }
     })
     
-    return NextResponse.json({ streams});
+    return NextResponse.json({ 
+        streams: streams.map(({_count, ...rest}) => ({
+            ...rest,
+            upvotes: _count.upvotes
+        }))
+    });
 }
 
 

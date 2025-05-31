@@ -10,42 +10,62 @@ const UpvoteSchema = z.object({
 export  async function POST(req: NextRequest){
     const session = await auth();
 
-    
-    
-    const user = await prismaClient.user.findFirst({
-        where: {
-            email : session?.user?.email as string
-        }
-        
-    })
-    if (!user) {
-        return NextResponse.json({ message: "User not found" }, { status: 404 });
-      }
-      
-
-    if(!session?.user?.email){
+    if (!session?.user?.email) {
         return NextResponse.json({
             message: "Unauthenticated"
-        },{
+        }, {
             status: 403
-        })
+        });
     }
 
-    try{
-            const data = UpvoteSchema.parse(await req.json())
-            await prismaClient.upvote.create({
-                data : {
-                    userId : user.id ,
-                    streamId : data.streamId
-                }
-            })
-
+    const user = await prismaClient.user.findFirst({
+        where: {
+            email: session.user.email
         }
-    catch(e){
-        return NextResponse.json({
-            message: "error while upvoting"
-        }, {status : 403})
-        
+    });
+
+    if (!user) {
+        return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-}        
+    try {
+        const { streamId } = UpvoteSchema.parse(await req.json());
+
+        // Find the Stream by its database ID
+        const stream = await prismaClient.stream.findUnique({
+            where: {
+                id: streamId
+            }
+        });
+
+        if (!stream) {
+            return NextResponse.json({ message: "Stream not found" }, { status: 404 });
+        }
+
+        // Create the upvote
+        await prismaClient.upvote.create({
+            data: {
+                userId: user.id,
+                streamId: stream.id
+            }
+        });
+
+        // Get updated upvote count
+        const upvoteCount = await prismaClient.upvote.count({
+            where: {
+                streamId: stream.id
+            }
+        });
+
+        return NextResponse.json({ 
+            message: "Upvoted successfully",
+            upvotes: upvoteCount,
+            hasUserUpvoted: true
+        });
+    } catch (e) {
+        console.error("Error in upvote:", e);
+        return NextResponse.json({
+            message: e instanceof Error ? e.message : "Error while upvoting"
+        }, { status: 403 });
+    }
+}

@@ -1,4 +1,5 @@
 import { prismaClient } from "@/app/lib/db";
+import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 // @ts-ignore
@@ -8,7 +9,6 @@ const YouTube_RegEx = /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}$/;
 const Spotify_RegEx = /^https:\/\/open\.spotify\.com\/track\/[\w\d]+/;
 
 const CreateStreamSchema = z.object({
-  creatorId: z.string(),
   url: z.string(),
 });
 
@@ -58,23 +58,45 @@ async function getSpotifyTrackDetails(spotifyUrl: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const data = CreateStreamSchema.parse(await req.json());
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ 
+        message: "You must be logged in to add songs",
+        code: "unauthorized"
+      }, { status: 401 });
+    }
+
+    const user = await prismaClient.user.findFirst({
+      where: { email: session.user.email }
+    });
+
+    if (!user) {
+      return NextResponse.json({ 
+        message: "User not found",
+        code: "user_not_found"
+      }, { status: 404 });
+    }
+
+    const { url } = CreateStreamSchema.parse(await req.json());
 
     let platform: "YouTube" | "Spotify" | null = null;
 
-    if (YouTube_RegEx.test(data.url)) {
+    if (YouTube_RegEx.test(url)) {
       platform = "YouTube";
-    } else if (Spotify_RegEx.test(data.url)) {
+    } else if (Spotify_RegEx.test(url)) {
       platform = "Spotify";
     } else {
       return NextResponse.json(
-        { message: "Unsupported URL format" },
-        { status: 411 }
+        { 
+          message: "Please provide a valid YouTube or Spotify URL",
+          code: "invalid_url"
+        },
+        { status: 400 }
       );
     }
 
     if (platform === "YouTube") {
-      const extractedId = data.url.split("v=")[1]; // fixed split
+      const extractedId = url.split("v=")[1];
 
       const res = await youtubesearchapi.GetVideoDetails(extractedId);
 
@@ -87,33 +109,40 @@ export async function POST(req: NextRequest) {
 
       const thumbnails = res.thumbnail.thumbnails;
       thumbnails.sort(
-        (a: { width: number }, b: { width: number }) =>
-          a.width - b.width
+        (a: { width: number }, b: { width: number }) => a.width - b.width
       );
 
       const stream = await prismaClient.stream.create({
         data: {
-          userId: data.creatorId,
-          url: data.url,
+          userId: user.id,
+          url: url,
           extractedId,
           type: "YouTube",
           title: res.title,
-          smallImg:
-            thumbnails.length > 1
-              ? thumbnails[thumbnails.length - 2].url
-              : thumbnails[thumbnails.length - 1].url,
-          bigImg: thumbnails[thumbnails.length - 1].url,
+          smallImg: thumbnails[0]?.url || "",
+          bigImg: thumbnails[thumbnails.length - 1]?.url || "",
+          artist: res.author || "",
+          durationMs: res.lengthSeconds ? res.lengthSeconds * 1000 : null,
         },
       });
 
-      return NextResponse.json({ stream });
+      return NextResponse.json({
+        id: stream.id,
+        title: stream.title,
+        artist: stream.artist || "",
+        album: "",
+        duration: formatDuration(stream.durationMs || 0),
+        durationSeconds: Math.floor((stream.durationMs || 0) / 1000),
+        smallThumbnail: stream.smallImg,
+        largeThumbnail: stream.bigImg,
+      });
     } else if (platform === "Spotify") {
-      const trackDetails = await getSpotifyTrackDetails(data.url);
+      const trackDetails = await getSpotifyTrackDetails(url);
 
       const stream = await prismaClient.stream.create({
         data: {
-          userId: data.creatorId,
-          url: data.url,
+          userId: user.id,
+          url: url,
           extractedId: trackDetails.extractedId,
           type: "Spotify",
           title: trackDetails.title,
@@ -140,4 +169,11 @@ export async function GET(req: NextRequest) {
     where: { userId: creatorId },
   });
   return NextResponse.json({ streams });
+}
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }

@@ -3,7 +3,6 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import axios from "axios"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -11,13 +10,10 @@ import {
   Music,
   Users,
   ThumbsUp,
-  ThumbsDown,
   Play,
   Pause,
   SkipForward,
   SkipBack,
-  Volume2,
-  Plus,
   Search,
   Settings,
   Share,
@@ -25,36 +21,30 @@ import {
   Maximize,
   Minimize,
   History,
+  Plus
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import type { Song } from "../types/song"
+import axios from "axios"
 import { prismaClient } from "../lib/db"
+import Stream from "stream"
+import { useEffect, useState, useMemo } from "react"
 
-interface Song {
-  id: number
-  title: string
-  artist: string
-  album: string
-  duration: string
-  thumbnail: string
-  upvotes: number
-  downvotes: number
-  addedBy: string
-  userVote?: "up" | "down" | null
-  youtubeId: string
-  durationSeconds: number
-}
+const PLACEHOLDER_IMAGE = "/placeholder.svg"
 
 export default function Dashboard() {
+  const [imageError, setImageError] = useState<{[key: string]: boolean}>({});
+  
   const [currentSong, setCurrentSong] = React.useState<Song | null>({
-    id: 0,
+    id: "0",
     title: "Blinding Lights",
     artist: "The Weeknd",
     album: "After Hours",
     duration: "3:20",
-    thumbnail: "/placeholder.svg?height=300&width=300",
+    thumbnail: PLACEHOLDER_IMAGE,
     upvotes: 12,
-    downvotes: 2,
+    hasUserUpvoted: false,
     youtubeId: "4NRXx6U8ABQ",
     addedBy: "Host",
     durationSeconds: 200,
@@ -67,72 +57,67 @@ export default function Dashboard() {
 
   const [queueSongs, setQueueSongs] = React.useState<Song[]>([
     {
-      id: 1,
+      id: "1",
       title: "Good 4 U",
       artist: "Olivia Rodrigo",
       album: "SOUR",
       duration: "2:58",
       thumbnail: "/placeholder.svg?height=60&width=60",
       upvotes: 8,
-      downvotes: 1,
+      hasUserUpvoted: false,
       addedBy: "Sarah",
-      userVote: null,
       youtubeId: "gNi_6U5Pm_o",
       durationSeconds: 178,
     },
     {
-      id: 2,
+      id: "2",
       title: "Levitating",
       artist: "Dua Lipa",
       album: "Future Nostalgia",
       duration: "3:23",
       thumbnail: "/placeholder.svg?height=60&width=60",
       upvotes: 6,
-      downvotes: 0,
+      hasUserUpvoted: false,
       addedBy: "Mike",
-      userVote: null,
       youtubeId: "TUVcZfQe-Kw",
       durationSeconds: 203,
     },
     {
-      id: 3,
+      id: "3",
       title: "Stay",
       artist: "The Kid LAROI, Justin Bieber",
       album: "F*CK LOVE 3",
       duration: "2:21",
       thumbnail: "/placeholder.svg?height=60&width=60",
       upvotes: 4,
-      downvotes: 2,
+      hasUserUpvoted: false,
       addedBy: "Alex",
-      userVote: null,
       youtubeId: "kTJczUoc26U",
       durationSeconds: 141,
     },
     {
-      id: 4,
+      id: "4",
       title: "Heat Waves",
       artist: "Glass Animals",
       album: "Dreamland",
       duration: "3:58",
       thumbnail: "/placeholder.svg?height=60&width=60",
       upvotes: 7,
-      downvotes: 0,
+      hasUserUpvoted: false,
       addedBy: "Emma",
-      userVote: null,
       youtubeId: "mRD0-GxqHVo",
       durationSeconds: 238,
     },
     {
-      id: 5,
+      id: "5",
       title: "As It Was",
       artist: "Harry Styles",
       album: "Harry's House",
       duration: "2:47",
       thumbnail: "/placeholder.svg?height=60&width=60",
       upvotes: 9,
-      downvotes: 1,
+      hasUserUpvoted: false,
       addedBy: "Jordan",
-      userVote: null,
       youtubeId: "H5v3kku4y6Q",
       durationSeconds: 167,
     },
@@ -140,30 +125,28 @@ export default function Dashboard() {
 
   const [previouslyPlayed, setPreviouslyPlayed] = React.useState<Song[]>([
     {
-      id: 99,
+      id: "99",
       title: "Anti-Hero",
       artist: "Taylor Swift",
       album: "Midnights",
       duration: "3:20",
       thumbnail: "/placeholder.svg?height=60&width=60",
       upvotes: 15,
-      downvotes: 2,
+      hasUserUpvoted: false,
       addedBy: "Emma",
-      userVote: null,
       youtubeId: "b1kbLWvqugk",
       durationSeconds: 200,
     },
     {
-      id: 98,
+      id: "98",
       title: "Flowers",
       artist: "Miley Cyrus",
       album: "Endless Summer Vacation",
       duration: "3:20",
       thumbnail: "/placeholder.svg?height=60&width=60",
       upvotes: 11,
-      downvotes: 3,
+      hasUserUpvoted: false,
       addedBy: "Mike",
-      userVote: null,
       youtubeId: "G7KNmW9a75Y",
       durationSeconds: 200,
     },
@@ -177,18 +160,18 @@ export default function Dashboard() {
     { name: "Emma", avatar: "/placeholder.svg?height=32&width=32", isHost: false },
   ]
 
-  // Calculate net score for sorting (upvotes - downvotes)
-  const getNetScore = (song: Song) => song.upvotes - song.downvotes
+  // Calculate net score for sorting (just use upvotes since we don't track downvotes)
+  const getNetScore = (song: Song) => song.upvotes
 
-   
-  // Sort songs by net score (highest first)
+  // Sort songs by upvotes
   const sortedQueueSongs = React.useMemo(() => {
     return [...queueSongs].sort((a, b) => {
       const scoreA = getNetScore(a)
       const scoreB = getNetScore(b)
 
       if (scoreA === scoreB) {
-        return a.id - b.id
+        // When scores are equal, sort by ID (converted to numbers for comparison)
+        return parseInt(a.id) - parseInt(b.id)
       }
 
       return scoreB - scoreA
@@ -204,8 +187,16 @@ export default function Dashboard() {
 
   // Progress bar percentage
   const progressPercentage = currentSong ? (currentTime / currentSong.durationSeconds) * 100 : 0
-  function refreshStreams(){
-    axios.get(`/streams/personalised`)
+
+
+ async function refreshStreams(){
+   const res = await axios.get(`/streams/personalised`, {
+    withCredentials: true
+   });
+   console.log(res)
+
+   
+
   }
   
   React.useEffect(() => {
@@ -214,7 +205,7 @@ export default function Dashboard() {
     
     }, 
     // @ts-ignore
-    REFRESH_INTERVAL_MS)
+   )
   }, []) 
   // Auto-advance to next song when current song ends
   React.useEffect(() => {
@@ -223,57 +214,79 @@ export default function Dashboard() {
     }
   }, [currentTime, currentSong])
 
-  // Update current time every second when playing
-  // React.useEffect(() => {
-  //   let interval: NodeJS.Timeout
-  //   if (isPlaying && currentSong) {
-  //     interval = setInterval(() => {
-  //       setCurrentTime((prev) => {
-  //         if (prev >= currentSong.durationSeconds) {
-  //           return currentSong.durationSeconds
-  //         }
-  //         return prev + 1
-  //       })
-  //     }, 1000)
-  //   }
-  //   return () => clearInterval(interval)
-  // }, [isPlaying, currentSong])
+  const handleVote = async (songId: string) => {
+    try {
+      const song = queueSongs.find(s => s.id === songId) || (currentSong?.id === songId ? currentSong : null);
+      if (!song) {
+        console.error("Song not found:", songId);
+        return;
+      }
 
-  // Handle voting logic
-  const handleVote = (songId: number, voteType: "up" | "down") => {
-    setQueueSongs((prevSongs) =>
-      prevSongs.map((song) => {
-        if (song.id !== songId) return song
+      console.log("Voting for song:", song);
+      const endpoint = song.hasUserUpvoted ? "/api/streams/downvote" : "/api/streams/upvote";
+      
+      // Find the stream by extractedId first
+      console.log("Finding stream for youtubeId:", song.youtubeId);
+      const streamResponse = await fetch(`/api/streams/find?extractedId=${song.youtubeId}`);
+      
+      if (!streamResponse.ok) {
+        console.error("Stream search failed:", await streamResponse.text());
+        throw new Error('Failed to find stream');
+      }
+      
+      const data = await streamResponse.json();
+      console.log("Stream search response:", data);
+      
+      if (!data.stream) {
+        // Create the stream if it doesn't exist
+        console.log("Stream not found, need to create it first");
+        // For now, we'll just show an error
+        throw new Error('Please add the song to the queue first');
+      }
+      
+      // Send request to server with the stream's database ID
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          streamId: data.stream.id,
+        }),
+      });
 
-        const currentVote = song.userVote
-        let newUpvotes = song.upvotes
-        let newDownvotes = song.downvotes
-        let newUserVote: "up" | "down" | null = voteType
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Vote update failed:", errorText);
+        throw new Error('Failed to update vote');
+      }
 
-        if (currentVote === "up") {
-          newUpvotes -= 1
-        } else if (currentVote === "down") {
-          newDownvotes -= 1
-        }
-
-        if (currentVote === voteType) {
-          newUserVote = null
-        } else {
-          if (voteType === "up") {
-            newUpvotes += 1
-          } else {
-            newDownvotes += 1
-          }
-        }
-
+      const result = await response.json();
+      console.log("Vote result:", result);
+      
+      // Helper function to update vote counts using server response
+      const updateVoteCounts = (song: Song) => {
+        if (song.id !== songId) return song;
+        
         return {
           ...song,
-          upvotes: newUpvotes,
-          downvotes: newDownvotes,
-          userVote: newUserVote,
-        }
-      }),
-    )
+          upvotes: result.upvotes,
+          hasUserUpvoted: result.hasUserUpvoted,
+        };
+      };
+
+      // Update queue songs if the voted song is in queue
+      setQueueSongs(prevSongs => prevSongs.map(song => updateVoteCounts(song)));
+
+      // Update current song if it's the one being voted on
+      if (currentSong && currentSong.id === songId) {
+        setCurrentSong(updateVoteCounts(currentSong));
+      }
+
+    } catch (error) {
+      console.error("Error updating vote:", error);
+      // TODO: Add a toast notification here to show the error to the user
+    }
   }
 
   // Handle play/pause
@@ -328,6 +341,96 @@ export default function Dashboard() {
 
     setCurrentTime(Math.max(0, Math.min(newTime, currentSong.durationSeconds)))
   }
+
+  // Add state for URL input
+  const [songUrl, setSongUrl] = React.useState("")
+
+  // Function to extract YouTube ID from URL
+  const extractYoutubeId = (url: string) => {
+    const regex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  }
+
+  // Function to add song to queue
+  const handleAddSong = async () => {
+    try {
+      const youtubeId = extractYoutubeId(songUrl);
+      if (!youtubeId) {
+        console.error("Invalid YouTube URL");
+        return;
+      }
+
+      const url = `https://www.youtube.com/watch?v=${youtubeId}`;
+      
+      // Create the stream in the database
+      const response = await fetch("/api/streams", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Failed to create stream:", errorText);
+        throw new Error("Failed to create stream");
+      }
+
+      const data = await response.json();
+      console.log("Stream created:", data);
+      
+      // Create a new song object
+      const newSong: Song = {
+        id: data.id,
+        title: data.title,
+        artist: data.artist,
+        album: data.album,
+        duration: data.duration,
+        thumbnail: data.smallThumbnail,
+        upvotes: 0,
+        hasUserUpvoted: false,
+        addedBy: "You",
+        youtubeId,
+        durationSeconds: data.durationSeconds,
+      };
+
+      // Add to queue
+      setQueueSongs(prev => [...prev, newSong]);
+      
+      // Clear the input
+      setSongUrl("");
+
+    } catch (error) {
+      console.error("Error adding song:", error);
+      // TODO: Add a toast notification here to show the error to the user
+    }
+  }
+
+  // Helper functions for image handling
+  const handleImageError = (id: string) => {
+    setImageError(prev => ({...prev, [id]: true}));
+  };
+
+  const getThumbnail = (image: string | undefined, id: string) => {
+    if (imageError[id]) return PLACEHOLDER_IMAGE;
+    return image || PLACEHOLDER_IMAGE;
+  };
+
+  // Clean up effect for WebSocket connections and error state
+  useEffect(() => {
+    return () => {
+      // Cleanup any active WebSocket connections
+      const ws = (window as any).ws;
+      if (ws) {
+        ws.close();
+        delete (window as any).ws;
+      }
+      // Clear error state when component unmounts
+      setImageError({});
+    };
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen bg-black text-white">
@@ -434,13 +537,15 @@ export default function Dashboard() {
 
                         {/* Voting for Video */}
                         <div className="flex items-center gap-4">
-                          <Button variant="ghost" className="text-green-400 hover:bg-green-400/20">
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => currentSong && handleVote(currentSong.id)}
+                            className={`text-green-400 hover:bg-green-400/20 ${
+                              currentSong?.hasUserUpvoted ? "bg-green-400/20" : ""
+                            }`}
+                          >
                             <ThumbsUp className="h-4 w-4 mr-2" />
                             {currentSong.upvotes}
-                          </Button>
-                          <Button variant="ghost" className="text-red-400 hover:bg-red-400/20">
-                            <ThumbsDown className="h-4 w-4 mr-2" />
-                            {currentSong.downvotes}
                           </Button>
                         </div>
                       </div>
@@ -483,7 +588,7 @@ export default function Dashboard() {
                     {sessionUsers.map((user, index) => (
                       <div key={index} className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                          <AvatarImage src={getThumbnail(user.avatar, user.name)} alt={user.name} onError={() => handleImageError(user.name)} />
                           <AvatarFallback className="bg-gray-700 text-white">{user.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <span className="text-white">{user.name}</span>
@@ -507,11 +612,22 @@ export default function Dashboard() {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Play Your desired song through the youtube url :)"
+                      placeholder="Paste a YouTube URL here"
                       className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 pl-10"
+                      value={songUrl}
+                      onChange={(e) => setSongUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleAddSong();
+                        }
+                      }}
                     />
                   </div>
-                  <Button className="bg-green-500 hover:bg-green-600 text-black">
+                  <Button 
+                    className="bg-green-500 hover:bg-green-600 text-black"
+                    onClick={handleAddSong}
+                    disabled={!songUrl}
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Add
                   </Button>
@@ -551,15 +667,14 @@ export default function Dashboard() {
                           key={song.id}
                           className="flex items-center gap-4 p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors"
                         >
-                          <div className="text-gray-400 text-sm w-6 text-center">{index + 1}</div>
-
-                          <Image
-                            src={song.thumbnail || "/placeholder.svg"}
-                            alt={`${song.title} album cover`}
-                            width={48}
-                            height={48}
-                            className="rounded-lg"
-                          />
+                          <div className="text-gray-400 text-sm w-6 text-center">{index + 1}</div>                          <Image
+                        src={getThumbnail(song.thumbnail, song.id)}
+                        alt={`${song.title} album cover`}
+                        width={48}
+                        height={48}
+                        className="rounded-lg"
+                        onError={() => handleImageError(song.id)}
+                      />
 
                           <div className="flex-1 min-w-0">
                             <p className="text-white font-medium truncate">{song.title}</p>
@@ -590,30 +705,16 @@ export default function Dashboard() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleVote(song.id, "up")}
+                              onClick={() => handleVote(song.id)}
                               className={`h-8 w-8 p-0 ${
-                                song.userVote === "up"
+                                song.hasUserUpvoted
                                   ? "text-green-400 bg-green-400/20"
                                   : "text-green-400 hover:bg-green-400/20"
                               }`}
                             >
                               <ThumbsUp className="h-3 w-3" />
                             </Button>
-                            <span className="text-green-400 text-sm w-4 text-center">{song.upvotes}</span>
-
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleVote(song.id, "down")}
-                              className={`h-8 w-8 p-0 ${
-                                song.userVote === "down"
-                                  ? "text-red-400 bg-red-400/20"
-                                  : "text-red-400 hover:bg-red-400/20"
-                              }`}
-                            >
-                              <ThumbsDown className="h-3 w-3" />
-                            </Button>
-                            <span className="text-red-400 text-sm w-4 text-center">{song.downvotes}</span>
+                            <span className="text-green-400 text-sm w-8 text-center">{song.upvotes}</span>
                           </div>
 
                           <div className="text-gray-500 text-xs">by {song.addedBy}</div>
@@ -656,11 +757,12 @@ export default function Dashboard() {
                         <div className="text-gray-500 text-sm w-6 text-center">{index + 1}</div>
 
                         <Image
-                          src={song.thumbnail || "/placeholder.svg"}
+                          src={getThumbnail(song.thumbnail, song.id)}
                           alt={`${song.title} album cover`}
                           width={48}
                           height={48}
                           className="rounded-lg opacity-75"
+                          onError={() => handleImageError(song.id)}
                         />
 
                         <div className="flex-1 min-w-0">
@@ -675,7 +777,7 @@ export default function Dashboard() {
 
                         <div className="flex items-center gap-2">
                           <div className="text-sm text-gray-500 px-2 py-1 rounded bg-gray-700/50">
-                            Final: +{song.upvotes - song.downvotes}
+                            Final: +{song.upvotes}
                           </div>
                         </div>
 

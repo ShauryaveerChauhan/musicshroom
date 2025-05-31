@@ -32,6 +32,7 @@ model User {
 
 model Stream {
   id          String     @id @default(uuid())
+  streamId    String?
   title       String
   type        StreamType
   url         String
