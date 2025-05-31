@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -33,132 +34,53 @@ import { useEffect, useState, useMemo } from "react"
 
 const PLACEHOLDER_IMAGE = "/placeholder.svg"
 
+interface User {
+  id: string;
+  name: string;
+  avatar: string;
+}
+
+interface RoomInfo {
+  roomName: string;
+  roomCode: string;
+  hostId: string | null;
+}
+
+interface WebSocketMessage {
+  type: 'USER_JOINED' | 'USER_LEFT' | 'ROOM_UPDATED';
+  user?: User;
+  userId?: string;
+  room?: Partial<RoomInfo>;
+}
+
 export default function Dashboard() {
-  const [imageError, setImageError] = useState<{[key: string]: boolean}>({});
-  
-  const [currentSong, setCurrentSong] = React.useState<Song | null>({
-    id: "0",
-    title: "Blinding Lights",
-    artist: "The Weeknd",
-    album: "After Hours",
-    duration: "3:20",
-    thumbnail: PLACEHOLDER_IMAGE,
-    upvotes: 12,
-    hasUserUpvoted: false,
-    youtubeId: "4NRXx6U8ABQ",
-    addedBy: "Host",
-    durationSeconds: 200,
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const roomCode = searchParams.get('code')
+
+  const [imageError, setImageError] = useState<{[key: string]: boolean}>({})
+  const [roomInfo, setRoomInfo] = useState<RoomInfo>({
+    roomName: "",
+    roomCode: roomCode || "",
+    hostId: null
   })
 
+  const [sessionUsers, setSessionUsers] = useState<Array<User & { isHost: boolean }>>([]);
+
+  const [currentSong, setCurrentSong] = React.useState<Song | null>({} as Song | null)
+
   const [isPlaying, setIsPlaying] = React.useState(true)
-  const [currentTime, setCurrentTime] = React.useState(105) // 1:45 in seconds
+  const [currentTime, setCurrentTime] = React.useState(0)
   const [isVideoExpanded, setIsVideoExpanded] = React.useState(false)
   const [volume, setVolume] = React.useState(70)
 
   const [queueSongs, setQueueSongs] = React.useState<Song[]>([
-    {
-      id: "1",
-      title: "Good 4 U",
-      artist: "Olivia Rodrigo",
-      album: "SOUR",
-      duration: "2:58",
-      thumbnail: "/placeholder.svg?height=60&width=60",
-      upvotes: 8,
-      hasUserUpvoted: false,
-      addedBy: "Sarah",
-      youtubeId: "gNi_6U5Pm_o",
-      durationSeconds: 178,
-    },
-    {
-      id: "2",
-      title: "Levitating",
-      artist: "Dua Lipa",
-      album: "Future Nostalgia",
-      duration: "3:23",
-      thumbnail: "/placeholder.svg?height=60&width=60",
-      upvotes: 6,
-      hasUserUpvoted: false,
-      addedBy: "Mike",
-      youtubeId: "TUVcZfQe-Kw",
-      durationSeconds: 203,
-    },
-    {
-      id: "3",
-      title: "Stay",
-      artist: "The Kid LAROI, Justin Bieber",
-      album: "F*CK LOVE 3",
-      duration: "2:21",
-      thumbnail: "/placeholder.svg?height=60&width=60",
-      upvotes: 4,
-      hasUserUpvoted: false,
-      addedBy: "Alex",
-      youtubeId: "kTJczUoc26U",
-      durationSeconds: 141,
-    },
-    {
-      id: "4",
-      title: "Heat Waves",
-      artist: "Glass Animals",
-      album: "Dreamland",
-      duration: "3:58",
-      thumbnail: "/placeholder.svg?height=60&width=60",
-      upvotes: 7,
-      hasUserUpvoted: false,
-      addedBy: "Emma",
-      youtubeId: "mRD0-GxqHVo",
-      durationSeconds: 238,
-    },
-    {
-      id: "5",
-      title: "As It Was",
-      artist: "Harry Styles",
-      album: "Harry's House",
-      duration: "2:47",
-      thumbnail: "/placeholder.svg?height=60&width=60",
-      upvotes: 9,
-      hasUserUpvoted: false,
-      addedBy: "Jordan",
-      youtubeId: "H5v3kku4y6Q",
-      durationSeconds: 167,
-    },
+   
   ])
 
   const [previouslyPlayed, setPreviouslyPlayed] = React.useState<Song[]>([
-    {
-      id: "99",
-      title: "Anti-Hero",
-      artist: "Taylor Swift",
-      album: "Midnights",
-      duration: "3:20",
-      thumbnail: "/placeholder.svg?height=60&width=60",
-      upvotes: 15,
-      hasUserUpvoted: false,
-      addedBy: "Emma",
-      youtubeId: "b1kbLWvqugk",
-      durationSeconds: 200,
-    },
-    {
-      id: "98",
-      title: "Flowers",
-      artist: "Miley Cyrus",
-      album: "Endless Summer Vacation",
-      duration: "3:20",
-      thumbnail: "/placeholder.svg?height=60&width=60",
-      upvotes: 11,
-      hasUserUpvoted: false,
-      addedBy: "Mike",
-      youtubeId: "G7KNmW9a75Y",
-      durationSeconds: 200,
-    },
+   
   ])
-
-  const sessionUsers = [
-    { name: "You", avatar: "/placeholder.svg?height=32&width=32", isHost: true },
-    { name: "Sarah", avatar: "/placeholder.svg?height=32&width=32", isHost: false },
-    { name: "Mike", avatar: "/placeholder.svg?height=32&width=32", isHost: false },
-    { name: "Alex", avatar: "/placeholder.svg?height=32&width=32", isHost: false },
-    { name: "Emma", avatar: "/placeholder.svg?height=32&width=32", isHost: false },
-  ]
 
   // Calculate net score for sorting (just use upvotes since we don't track downvotes)
   const getNetScore = (song: Song) => song.upvotes
@@ -189,24 +111,108 @@ export default function Dashboard() {
   const progressPercentage = currentSong ? (currentTime / currentSong.durationSeconds) * 100 : 0
 
 
- async function refreshStreams(){
-   const res = await axios.get(`/streams/personalised`, {
-    withCredentials: true
-   });
-   console.log(res)
+ async function refreshStreams() {
+  try {
+    const res = await axios.get(`/streams/personalised`, {
+      withCredentials: true
+    });
 
-   
+    // Update room info if available
+    if (res.data.room) {
+      setRoomInfo({
+        roomName: res.data.room.name,
+        roomCode: res.data.room.code,
+        hostId: res.data.room.hostId
+      });
+    }
 
+    // Update session users if available
+    if (res.data.users) {
+      setSessionUsers(res.data.users.map((user: User) => ({
+        id: user.id,
+        name: user.name || "Anonymous",
+        avatar: user.avatar || "/placeholder.svg?height=32&width=32",
+        isHost: user.id === res.data.room?.hostId
+      })));
+    }
+  } catch (error) {
+    console.error("Error refreshing streams:", error);
   }
+}
   
-  React.useEffect(() => {
+  // Set up WebSocket connection for real-time updates
+  useEffect(() => {
+    // Initial load
     refreshStreams();
-    const interval = setInterval(() => {
-    
-    }, 
-    // @ts-ignore
-   )
+
+    // Set up WebSocket connection
+    const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3000/ws');
+
+    ws.onopen = () => {
+      console.log('WebSocket Connected');
+      // Send room join message
+      if (roomCode) {
+        ws.send(JSON.stringify({
+          type: 'JOIN_ROOM',
+          roomCode
+        }));
+      }
+      (window as any).ws = ws;
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as WebSocketMessage;
+        
+        // Handle different types of events
+        switch (data.type) {
+          case 'USER_JOINED':
+            if (data.user) {
+              setSessionUsers(prev => [
+                ...prev,
+                {
+                  id: data.user!.id,
+                  name: data.user!.name || "Anonymous",
+                  avatar: data.user!.avatar || "/placeholder.svg?height=32&width=32",
+                  isHost: data.user!.id === roomInfo.hostId
+                }
+              ]);
+            }
+            break;
+
+          case 'USER_LEFT':
+            if (data.userId) {
+              setSessionUsers(prev => prev.filter(user => user.id !== data.userId));
+            }
+            break;
+
+          case 'ROOM_UPDATED':
+            if (data.room) {
+              setRoomInfo(prev => ({
+                ...prev,
+                ...data.room
+              }));
+            }
+            break;
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    // Clean up WebSocket connection on unmount
+    return () => {
+      if (ws) {
+        ws.close();
+        delete (window as any).ws;
+      }
+    };
   }, []) 
+
   // Auto-advance to next song when current song ends
   React.useEffect(() => {
     if (currentSong && currentTime >= currentSong.durationSeconds) {
@@ -432,6 +438,36 @@ export default function Dashboard() {
     };
   }, []);
 
+  // Load room data when component mounts or room code changes
+  useEffect(() => {
+    const loadRoomData = async () => {
+      if (!roomCode) {
+        router.push('/') // Redirect to home if no room code
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/room?code=${roomCode}`)
+        if (!response.ok) {
+          throw new Error('Room not found')
+        }
+
+        const data = await response.json()
+        setRoomInfo(prev => ({
+          ...prev,
+          roomName: data.room.name,
+          roomCode: data.room.code,
+          hostId: data.room.hostId
+        }))
+      } catch (error) {
+        console.error('Error loading room:', error)
+        router.push('/') // Redirect to home on error
+      }
+    }
+
+    loadRoomData()
+  }, [roomCode, router])
+
   return (
     <div className="flex flex-col min-h-screen bg-black text-white">
       {/* Header */}
@@ -445,8 +481,8 @@ export default function Dashboard() {
 
         <div className="ml-8 flex items-center gap-4">
           <div>
-            <h2 className="font-semibold text-white">Friday Night Vibes</h2>
-            <p className="text-sm text-gray-400">Room: </p>
+            <h2 className="font-semibold text-white">{roomInfo.roomName}</h2>
+            <p className="text-sm text-gray-400">Code: {roomInfo.roomCode}</p>
           </div>
         </div>
 
@@ -478,7 +514,7 @@ export default function Dashboard() {
                       <div className="flex items-center justify-between">
                         <div>
                           <Badge className="bg-green-500/20 text-green-400 border-green-500/30 mb-2">Now Playing</Badge>
-                          <h1 className="text-2xl font-bold text-white">{currentSong.title}</h1>
+                          <h1 className="text-2xl font-bold text-white">{currentSong.title ?? "Choose a Song"} </h1>
                           <p className="text-lg text-gray-400">{currentSong.artist}</p>
                         </div>
                         <Button
@@ -717,7 +753,11 @@ export default function Dashboard() {
                             <span className="text-green-400 text-sm w-8 text-center">{song.upvotes}</span>
                           </div>
 
-                          <div className="text-gray-500 text-xs">by {song.addedBy}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm text-gray-500 px-2 py-1 rounded bg-gray-700/50">
+                              Added by {song.addedBy}
+                            </div>
+                          </div>
                         </div>
                       )
                     })}

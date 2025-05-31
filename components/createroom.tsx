@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Play, Copy, RefreshCw } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 
 interface inputProps{
@@ -14,9 +16,12 @@ interface inputProps{
 }
 
 export function CreateRoom({openCreateRoomDialog,setOpenCreateRoomDialog}:inputProps) {
+  const router = useRouter()
   const [roomName, setRoomName] = React.useState("")
   const [roomCode, setRoomCode] = React.useState("")
   const [copied, setCopied] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(false)
+  const [error, setError] = React.useState("")
 
   // Generate random room code
   const generateRoomCode = React.useCallback(() => {
@@ -43,10 +48,41 @@ export function CreateRoom({openCreateRoomDialog,setOpenCreateRoomDialog}:inputP
     }
   }
 
-  const handleCreateRoom = () => {
-    // Here you would typically make an API call to create the room
-    console.log("Creating room:", { roomName, roomCode })
-    // Redirect to dashboard or handle room creation
+  const handleCreateRoom = async () => {
+    if (!roomName.trim()) {
+      setError("Please enter a room name")
+      return
+    }
+
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch("/api/room", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: roomName,
+          code: roomCode,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || "Failed to create room")
+      }
+
+      // Close dialog and redirect to dashboard with room info
+      setOpenCreateRoomDialog(false)
+      router.push(`/dashboard?code=${roomCode}`)
+    } catch (err) {
+      console.error("Error creating room:", err)
+      setError(err instanceof Error ? err.message : "Failed to create room")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -117,13 +153,19 @@ export function CreateRoom({openCreateRoomDialog,setOpenCreateRoomDialog}:inputP
             </ul>
           </div>
 
+          {error && (
+            <Alert variant="destructive" className="rounded-md">
+              <AlertDescription className="text-sm">{error}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex gap-3">
             <Button
               onClick={handleCreateRoom}
-              disabled={!roomName.trim()}
+              disabled={!roomName.trim() || isLoading}
               className="flex-1 bg-green-500 hover:bg-green-600 text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Room
+              {isLoading ? "Creating..." : "Create Room"}
             </Button>
           </div>
         </div>

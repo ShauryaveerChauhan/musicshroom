@@ -7,18 +7,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Users, LogIn, AlertCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
 
-
-
-interface inputProps{
-  setOpenCreateRoomDialog:(openCreateRoomDialog:boolean)=>void
+interface inputProps {
+  setOpenCreateRoomDialog: (openCreateRoomDialog: boolean) => void;
 }
 
-export function JoinRoom({ setOpenCreateRoomDialog }:inputProps) {
+export function JoinRoom({ setOpenCreateRoomDialog }: inputProps) {
+  const router = useRouter()
   const [roomCode, setRoomCode] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState("")
-  const [open,setOpen]=React.useState(false);
+  const [open, setOpen] = React.useState(false)
 
   // Format room code as user types (uppercase, max 6 chars)
   const handleRoomCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,11 +30,11 @@ export function JoinRoom({ setOpenCreateRoomDialog }:inputProps) {
     if (error) setError("") // Clear error when user starts typing
   }
 
-  const handleChangeDialog = ()=>{
-
+  const handleChangeDialog = () => {
     setOpenCreateRoomDialog(true)
     setOpen(false)
   }
+
   const handleJoinRoom = async () => {
     if (!roomCode.trim()) {
       setError("Please enter a room code")
@@ -50,22 +50,16 @@ export function JoinRoom({ setOpenCreateRoomDialog }:inputProps) {
     setError("")
 
     try {
-      // Simulate API call to join room
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // Here you would typically make an API call to join the room
-      console.log("Joining room:", roomCode)
-
-      // Simulate different responses
-      const random = Math.random()
-      if (random < 0.1) {
-        throw new Error("Room not found")
-      } else if (random < 0.2) {
-        throw new Error("Room is full")
+      const response = await fetch(`/api/room?code=${roomCode}`)
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || "Failed to join room")
       }
 
-      // Success - redirect to dashboard or handle room joining
-      console.log("Successfully joined room:", roomCode)
+      // Close dialog and redirect to dashboard with room code
+      setOpen(false)
+      router.push(`/dashboard?code=${roomCode}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join room")
     } finally {
