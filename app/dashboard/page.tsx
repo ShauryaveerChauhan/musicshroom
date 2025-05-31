@@ -31,6 +31,7 @@ import axios from "axios"
 import { prismaClient } from "../lib/db"
 import Stream from "stream"
 import { useEffect, useState, useMemo } from "react"
+import { useSession } from 'next-auth/react';
 
 const PLACEHOLDER_IMAGE = "/placeholder.svg"
 
@@ -58,6 +59,8 @@ export default function Dashboard() {
   const searchParams = useSearchParams()
   const roomCode = searchParams.get('code')
 
+  const { data: session } = useSession();
+  
   const [imageError, setImageError] = useState<{[key: string]: boolean}>({})
   const [roomInfo, setRoomInfo] = useState<RoomInfo>({
     roomName: "",
@@ -140,69 +143,94 @@ export default function Dashboard() {
   }
 }
   
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 5;
+  const RETRY_DELAY = 3000; // 3 seconds
+
   // Set up WebSocket connection for real-time updates
   useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout;
+
+    const connectWebSocket = () => {
+      ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001');
+
+      ws.onopen = () => {
+        console.log('WebSocket Connected');
+        setRetryCount(0); // Reset retry count on successful connection
+        // Send room join message
+        if (roomCode && session?.user?.id && ws) {
+          ws.send(JSON.stringify({
+            type: 'JOIN_ROOM',
+            roomCode,
+            userId: session.user.id
+          }));
+        }
+        (window as any).ws = ws;
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data) as WebSocketMessage;
+          
+          // Handle different types of events
+          switch (data.type) {
+            case 'USER_JOINED':
+              if (data.user) {
+                setSessionUsers(prev => [
+                  ...prev,
+                  {
+                    id: data.user!.id,
+                    name: data.user!.name || "Anonymous",
+                    avatar: data.user!.avatar || "/placeholder.svg?height=32&width=32",
+                    isHost: data.user!.id === roomInfo.hostId
+                  }
+                ]);
+              }
+              break;
+
+            case 'USER_LEFT':
+              if (data.userId) {
+                setSessionUsers(prev => prev.filter(user => user.id !== data.userId));
+              }
+              break;
+
+            case 'ROOM_UPDATED':
+              if (data.room) {
+                setRoomInfo(prev => ({
+                  ...prev,
+                  ...data.room
+                }));
+              }
+              break;
+          }
+        } catch (error) {
+          console.error('Error handling WebSocket message:', error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        // Only attempt to reconnect if we haven't reached max retries
+        if (retryCount < MAX_RETRIES) {
+          console.log(`Attempting to reconnect... (${retryCount + 1}/${MAX_RETRIES})`);
+          reconnectTimeout = setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+            connectWebSocket();
+          }, RETRY_DELAY);
+        } else {
+          console.log('Max reconnection attempts reached');
+        }
+      };
+    };
+
     // Initial load
     refreshStreams();
-
-    // Set up WebSocket connection
-    const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3000/ws');
-
-    ws.onopen = () => {
-      console.log('WebSocket Connected');
-      // Send room join message
-      if (roomCode) {
-        ws.send(JSON.stringify({
-          type: 'JOIN_ROOM',
-          roomCode
-        }));
-      }
-      (window as any).ws = ws;
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as WebSocketMessage;
-        
-        // Handle different types of events
-        switch (data.type) {
-          case 'USER_JOINED':
-            if (data.user) {
-              setSessionUsers(prev => [
-                ...prev,
-                {
-                  id: data.user!.id,
-                  name: data.user!.name || "Anonymous",
-                  avatar: data.user!.avatar || "/placeholder.svg?height=32&width=32",
-                  isHost: data.user!.id === roomInfo.hostId
-                }
-              ]);
-            }
-            break;
-
-          case 'USER_LEFT':
-            if (data.userId) {
-              setSessionUsers(prev => prev.filter(user => user.id !== data.userId));
-            }
-            break;
-
-          case 'ROOM_UPDATED':
-            if (data.room) {
-              setRoomInfo(prev => ({
-                ...prev,
-                ...data.room
-              }));
-            }
-            break;
-        }
-      } catch (error) {
-        console.error('Error handling WebSocket message:', error);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
+    connectWebSocket();
 
     // Clean up WebSocket connection on unmount
     return () => {
@@ -210,8 +238,11 @@ export default function Dashboard() {
         ws.close();
         delete (window as any).ws;
       }
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
     };
-  }, []) 
+  }, [roomCode, session?.user?.id, retryCount, roomInfo.hostId]) 
 
   // Auto-advance to next song when current song ends
   React.useEffect(() => {
@@ -483,7 +514,7 @@ export default function Dashboard() {
           <div>
             <h2 className="font-semibold text-white">{roomInfo.roomName}</h2>
             <p className="text-sm text-gray-400">Code: {roomInfo.roomCode}</p>
-          </div>
+          </div> 
         </div>
 
         <div className="ml-auto flex items-center gap-4">
@@ -590,7 +621,7 @@ export default function Dashboard() {
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm text-gray-400">
                           <span>{formatTime(currentTime)}</span>
-                          <span>Select the section of the song you want to play</span>
+                          <span>Select song starting time:</span>
                           <span>{currentSong.duration}</span>
                         </div>
                         <div

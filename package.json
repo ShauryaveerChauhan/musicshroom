@@ -6,7 +6,8 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "ws": "bun run server/websocket.ts"
   },
   "dependencies": {
     "@auth/core": "^0.39.0",
@@ -16,6 +17,7 @@
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-slot": "^1.2.3",
+    "@types/ws": "^8.18.1",
     "axios": "^1.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -25,6 +27,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.3.0",
+    "ws": "^8.18.2",
     "youtube-search-api": "^1.2.2",
     "zod": "^3.24.3"
   },
@@ -34,6 +37,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "bun-types": "^1.2.15",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "prisma": "^6.7.0",

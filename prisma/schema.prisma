@@ -16,6 +16,7 @@ datasource db {
 
 model User {
   id            String    @id @default(cuid())
+  rooms         Room[]    @relation("UserRooms")         
   name          String?
   email         String    @unique
   emailVerified DateTime?
@@ -98,9 +99,14 @@ model VerificationToken {
 }
 
 model Room {
-  id   String @default(uuid())
-  Name String
-  Code String @unique
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  hostId    String
+  host      User     @relation( "UserRooms", fields: [hostId], references: [id])
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum StreamType {
