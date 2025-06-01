@@ -111,12 +111,13 @@ export default function Dashboard() {
   }
 
   // Progress bar percentage
-  const progressPercentage = currentSong ? (currentTime / currentSong.durationSeconds) * 100 : 0
+  const progressPercentage = currentSong ? (currentTime / currentSong.durationSeconds) * 100 : 0;
 
-
- async function refreshStreams() {
+  async function refreshStreams() {
   try {
-    const res = await axios.get(`/streams/personalised`, {
+    // Use window.location.origin to ensure we have the correct protocol and host
+    const baseUrl = window.location.origin;
+    const res = await axios.get(`${baseUrl}/api/streams/me`, {
       withCredentials: true
     });
 
@@ -137,6 +138,8 @@ export default function Dashboard() {
         avatar: user.avatar || "/placeholder.svg?height=32&width=32",
         isHost: user.id === res.data.room?.hostId
       })));
+    } else {
+      setSessionUsers([]); // Clear if no users
     }
   } catch (error) {
     console.error("Error refreshing streams:", error);
@@ -149,6 +152,8 @@ export default function Dashboard() {
 
   // Set up WebSocket connection for real-time updates
   useEffect(() => {
+    if (!session || !session.user?.id) return;
+    console.log('Calling /api/streams/me');
     let ws: WebSocket | null = null;
     let reconnectTimeout: NodeJS.Timeout;
 
@@ -157,7 +162,7 @@ export default function Dashboard() {
 
       ws.onopen = () => {
         console.log('WebSocket Connected');
-        setRetryCount(0); // Reset retry count on successful connection
+        setRetryCount(0);
         // Send room join message
         if (roomCode && session?.user?.id && ws) {
           ws.send(JSON.stringify({
@@ -170,61 +175,36 @@ export default function Dashboard() {
       };
 
       ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data) as WebSocketMessage;
-          
-          // Handle different types of events
-          switch (data.type) {
-            case 'USER_JOINED':
-              if (data.user) {
-                setSessionUsers(prev => [
-                  ...prev,
-                  {
-                    id: data.user!.id,
-                    name: data.user!.name || "Anonymous",
-                    avatar: data.user!.avatar || "/placeholder.svg?height=32&width=32",
-                    isHost: data.user!.id === roomInfo.hostId
-                  }
-                ]);
-              }
-              break;
+        const data: WebSocketMessage = JSON.parse(event.data);
 
-            case 'USER_LEFT':
-              if (data.userId) {
-                setSessionUsers(prev => prev.filter(user => user.id !== data.userId));
-              }
-              break;
+        if (data.type === 'USER_JOINED' && data.user) {
+          setSessionUsers((prev) => {
+            const isAlreadyListed = prev.some((user) => user.id === data.user?.id);
+            if (isAlreadyListed || !data.user) return prev;
 
-            case 'ROOM_UPDATED':
-              if (data.room) {
-                setRoomInfo(prev => ({
-                  ...prev,
-                  ...data.room
-                }));
-              }
-              break;
-          }
-        } catch (error) {
-          console.error('Error handling WebSocket message:', error);
+            const newUser: User & { isHost: boolean } = {
+              id: data.user.id,
+              name: data.user.name || 'Anonymous',
+              avatar: data.user.avatar || PLACEHOLDER_IMAGE,
+              isHost: false,
+            };
+
+            return [...prev, newUser];
+          });
         }
-      };
 
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        if (data.type === 'USER_LEFT' && data.userId) {
+          setSessionUsers((prev) => prev.filter((user) => user.id !== data.userId));
+        }
+
+        if (data.type === 'ROOM_UPDATED' && data.room) {
+          setRoomInfo((prev) => ({ ...prev, ...data.room }));
+        }
       };
 
       ws.onclose = () => {
-        console.log('WebSocket disconnected');
-        // Only attempt to reconnect if we haven't reached max retries
-        if (retryCount < MAX_RETRIES) {
-          console.log(`Attempting to reconnect... (${retryCount + 1}/${MAX_RETRIES})`);
-          reconnectTimeout = setTimeout(() => {
-            setRetryCount(prev => prev + 1);
-            connectWebSocket();
-          }, RETRY_DELAY);
-        } else {
-          console.log('Max reconnection attempts reached');
-        }
+        console.log('WebSocket Disconnected');
+        reconnectTimeout = setTimeout(connectWebSocket, RETRY_DELAY);
       };
     };
 
@@ -242,7 +222,7 @@ export default function Dashboard() {
         clearTimeout(reconnectTimeout);
       }
     };
-  }, [roomCode, session?.user?.id, retryCount, roomInfo.hostId]) 
+  }, [roomCode, session?.user?.id]) 
 
   // Auto-advance to next song when current song ends
   React.useEffect(() => {
@@ -518,16 +498,9 @@ export default function Dashboard() {
         </div>
 
         <div className="ml-auto flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-gray-400" />
-            <span className="text-sm text-gray-400">{sessionUsers.length} listeners</span>
-          </div>
+         
+         
           <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white hover:bg-gray-800">
-            <Share className="h-4 w-4 mr-2" />
-            Share
-          </Button>
-          <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white hover:bg-gray-800">
-            <Settings className="h-4 w-4" />
           </Button>
         </div>
       </header>

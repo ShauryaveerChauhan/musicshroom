@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "ws": "bun run server/websocket.ts"
+    "ws": "NODE_ENV=development bun --watch server/websocket.ts"
   },
   "dependencies": {
     "@auth/core": "^0.39.0",
