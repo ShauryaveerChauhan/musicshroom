@@ -48,10 +48,11 @@ interface RoomInfo {
 }
 
 interface WebSocketMessage {
-  type: 'USER_JOINED' | 'USER_LEFT' | 'ROOM_UPDATED';
+  type: 'USER_JOINED' | 'USER_LEFT' | 'ROOM_UPDATED' | 'SONG_ADDED';
   user?: User;
   userId?: string;
   room?: Partial<RoomInfo>;
+  song?: Song;
 }
 
 export default function Dashboard() {
@@ -176,6 +177,13 @@ export default function Dashboard() {
 
       ws.onmessage = (event) => {
         const data: WebSocketMessage = JSON.parse(event.data);
+
+        if (data.type === 'SONG_ADDED' && data.song) {
+          setQueueSongs((prev) => {
+            if (!data.song) return prev;
+            return [...prev, data.song];
+          });
+        }
 
         if (data.type === 'USER_JOINED' && data.user) {
           setSessionUsers((prev) => {
