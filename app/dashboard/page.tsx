@@ -153,82 +153,11 @@ export default function Dashboard() {
 
   // Set up WebSocket connection for real-time updates
   useEffect(() => {
-    if (!session || !session.user?.id) return;
-    console.log('Calling /api/streams/me');
-    let ws: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout;
-
-    const connectWebSocket = () => {
-      ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001');
-
-      ws.onopen = () => {
-        console.log('WebSocket Connected');
-        setRetryCount(0);
-        // Send room join message
-        if (roomCode && session?.user?.id && ws) {
-          ws.send(JSON.stringify({
-            type: 'JOIN_ROOM',
-            roomCode,
-            userId: session.user.id
-          }));
-        }
-        (window as any).ws = ws;
-      };
-
-      ws.onmessage = (event) => {
-        const data: WebSocketMessage = JSON.parse(event.data);
-
-        if (data.type === 'SONG_ADDED' && data.song) {
-          setQueueSongs((prev) => {
-            if (!data.song) return prev;
-            return [...prev, data.song];
-          });
-        }
-
-        if (data.type === 'USER_JOINED' && data.user) {
-          setSessionUsers((prev) => {
-            const isAlreadyListed = prev.some((user) => user.id === data.user?.id);
-            if (isAlreadyListed || !data.user) return prev;
-
-            const newUser: User & { isHost: boolean } = {
-              id: data.user.id,
-              name: data.user.name || 'Anonymous',
-              avatar: data.user.avatar || PLACEHOLDER_IMAGE,
-              isHost: false,
-            };
-
-            return [...prev, newUser];
-          });
-        }
-
-        if (data.type === 'USER_LEFT' && data.userId) {
-          setSessionUsers((prev) => prev.filter((user) => user.id !== data.userId));
-        }
-
-        if (data.type === 'ROOM_UPDATED' && data.room) {
-          setRoomInfo((prev) => ({ ...prev, ...data.room }));
-        }
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket Disconnected');
-        reconnectTimeout = setTimeout(connectWebSocket, RETRY_DELAY);
-      };
-    };
-
-    // Initial load
     refreshStreams();
-    connectWebSocket();
 
-    // Clean up WebSocket connection on unmount
+    // Clean up effect for WebSocket connections and error state
     return () => {
-      if (ws) {
-        ws.close();
-        delete (window as any).ws;
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
+      setImageError({});
     };
   }, [roomCode, session?.user?.id]) 
 
@@ -599,22 +528,30 @@ export default function Dashboard() {
                       </div>
 
                       {/* Dynamic Progress Bar */}
-                      <div className="space-y-2">
+                      {/* <div className="space-y-2">
                         <div className="flex justify-between text-sm text-gray-400">
                           <span>{formatTime(currentTime)}</span>
-                          <span>Select song starting time:</span>
-                          <span>{currentSong.duration}</span>
+                          <span>{currentSong?.duration}</span>
                         </div>
                         <div
                           className="w-full bg-gray-700 rounded-full h-2 cursor-pointer"
-                          onClick={handleProgressClick}
+                          onClick={(e) => {
+                            if (!currentSong) return;
+
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const clickX = e.clientX - rect.left;
+                            const percentage = clickX / rect.width;
+                            const newTime = Math.floor(percentage * currentSong.durationSeconds);
+
+                            setCurrentTime(Math.max(0, Math.min(newTime, currentSong.durationSeconds)));
+                          }}
                         >
                           <div
                             className="bg-green-500 h-2 rounded-full transition-all duration-300"
                             style={{ width: `${progressPercentage}%` }}
                           />
                         </div>
-                      </div>
+                      </div> */}
                     </div>
                   ) : (
                     <div className="text-center py-20">
